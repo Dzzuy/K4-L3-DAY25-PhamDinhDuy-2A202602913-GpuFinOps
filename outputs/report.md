@@ -58,4 +58,26 @@ Chỉ bật reasoning cho việc nhiều bước mà cách xử lý thường kh
 - Tiền điện tại us-east-1: $0.000029/truy vấn; tại vùng sạch nhất europe-north1: $0.000022/truy vấn và 0.007 gCO2e.
 - Vùng có điện rẻ nhất: us-east-wa; vùng sạch nhất: europe-north1. Chọn vùng triển khai còn phải xét độ trễ và chi phí hạ tầng; các giá điện là giả định minh họa.
 
+## Chuyển job sang vùng ít phát thải (mở rộng)
+
+Chỉ tính các job có thể gián đoạn. Mỗi job dùng đúng số ngày trong `workloads.csv`; giữ nguyên GPU và số giờ chạy, chỉ thay vùng đặt máy.
+
+| Job | gCO₂e tại us-east-1 | gCO₂e tại vùng sạch nhất | Giảm gCO₂e |
+|---|---:|---:|---:|
+| job-train-llm | 595,840 | 47,040 | 548,800 |
+| job-train-embed | 30,400 | 2,400 | 28,000 |
+| job-finetune | 9,576 | 756 | 8,820 |
+| job-dev-sandbox | 20,064 | 1,584 | 18,480 |
+| job-batch-eval | 23,940 | 1,890 | 22,050 |
+
+| Vùng | USD/kWh | gCO₂/kWh | Tiền điện USD | gCO₂e |
+|---|---:|---:|---:|---:|
+| us-east-1 | 0.120 | 380 | $214.68 | 679,820 |
+| us-west-2 | 0.070 | 120 | $125.23 | 214,680 |
+| europe-north1 | 0.090 | 30 | $161.01 | 53,670 |
+| europe-central2 | 0.180 | 660 | $322.02 | 1,180,740 |
+| us-east-wa | 0.055 | 90 | $98.39 | 161,010 |
+
+Chuyển toàn bộ job trên từ us-east-1 sang europe-north1 giảm khoảng 626,150 gCO₂e. us-east-wa rẻ điện nhất; europe-north1 ít phát thải nhất. Nếu coi giá điện và carbon quan trọng ngang nhau, us-east-wa có điểm cân bằng tốt nhất trong năm vùng. Chưa tính độ trễ, giá thuê GPU và phí chuyển dữ liệu; cần kiểm tra các khoản đó trước khi chuyển job thật.
+
 _Giá và cường độ carbon là số liệu minh họa tại tháng 6/2026; cần cập nhật trước khi áp dụng thực tế._

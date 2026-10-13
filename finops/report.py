@@ -5,7 +5,7 @@ from __future__ import annotations
 def build_report(baseline_usd: float, optimized_usd: float, levers: dict,
                  sustainability: dict | None = None, period: str = "monthly",
                  inference: dict | None = None, analysis: dict | None = None,
-                 reasoning: dict | None = None) -> str:
+                 reasoning: dict | None = None, carbon_schedule: dict | None = None) -> str:
     """Return a markdown cost-optimization report."""
     savings = baseline_usd - optimized_usd
     pct = (savings / baseline_usd * 100.0) if baseline_usd > 0 else 0.0
@@ -97,6 +97,44 @@ def build_report(baseline_usd: float, optimized_usd: float, levers: dict,
             f"- Truy vấn mẫu {sustainability['sample_tokens']} token: {sustainability['wh_per_query']:.2f} Wh, phát thải {sustainability['carbon_g']:.3f} gCO2e tại {sustainability['base_region']}.",
             f"- Tiền điện tại {sustainability['base_region']}: ${sustainability['base_energy_usd']:.6f}/truy vấn; tại vùng sạch nhất {sustainability['cleanest_region']}: ${sustainability['clean_energy_usd']:.6f}/truy vấn và {sustainability['clean_carbon_g']:.3f} gCO2e.",
             f"- Vùng có điện rẻ nhất: {sustainability['cheapest_region']}; vùng sạch nhất: {sustainability['cleanest_region']}. Chọn vùng triển khai còn phải xét độ trễ và chi phí hạ tầng; các giá điện là giả định minh họa.",
+        ]
+    if carbon_schedule:
+        lines += [
+            "",
+            "## Chuyển job sang vùng ít phát thải (mở rộng)",
+            "",
+            "Chỉ tính các job có thể gián đoạn. Mỗi job dùng đúng số ngày trong `workloads.csv`; "
+            "giữ nguyên GPU và số giờ chạy, chỉ thay vùng đặt máy.",
+            "",
+            "| Job | gCO₂e tại us-east-1 | gCO₂e tại vùng sạch nhất | Giảm gCO₂e |",
+            "|---|---:|---:|---:|",
+        ]
+        for job in carbon_schedule["jobs"]:
+            lines.append(
+                f"| {job['job_id']} | {job['baseline_carbon_g']:,.0f} | "
+                f"{job['clean_carbon_g']:,.0f} | {job['saved_carbon_g']:,.0f} |"
+            )
+        lines += [
+            "",
+            "| Vùng | USD/kWh | gCO₂/kWh | Tiền điện USD | gCO₂e |",
+            "|---|---:|---:|---:|---:|",
+        ]
+        for region in carbon_schedule["regions"]:
+            lines.append(
+                f"| {region['region']} | {region['price_kwh']:.3f} | "
+                f"{region['carbon_kwh']} | ${region['electricity_usd']:,.2f} | "
+                f"{region['carbon_g']:,.0f} |"
+            )
+        lines += [
+            "",
+            f"Chuyển toàn bộ job trên từ {carbon_schedule['base_region']} sang "
+            f"{carbon_schedule['cleanest_region']} giảm khoảng "
+            f"{carbon_schedule['saved_carbon_g']:,.0f} gCO₂e. "
+            f"{carbon_schedule['cheapest_region']} rẻ điện nhất; "
+            f"{carbon_schedule['cleanest_region']} ít phát thải nhất. "
+            f"Nếu coi giá điện và carbon quan trọng ngang nhau, {carbon_schedule['balanced_region']} "
+            "có điểm cân bằng tốt nhất trong năm vùng. Chưa tính độ trễ, giá thuê GPU và phí chuyển dữ liệu; "
+            "cần kiểm tra các khoản đó trước khi chuyển job thật.",
         ]
     lines += ["", "_Giá và cường độ carbon là số liệu minh họa tại tháng 6/2026; cần cập nhật trước khi áp dụng thực tế._"]
     return "\n".join(lines)

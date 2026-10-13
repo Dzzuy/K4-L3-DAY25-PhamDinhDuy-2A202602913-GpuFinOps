@@ -8,7 +8,7 @@ _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)
 import os
 from missions._common import num, catalog_by_type, ROOT
 from finops import report, sustainability
-from missions import m1_efficiency_audit, m2_inference_levers, m3_purchasing
+from missions import m1_efficiency_audit, m2_inference_levers, m3_purchasing, carbon_scheduling
 
 DAYS = 30
 # one tier down for over-provisioned ("util-lie") GPUs
@@ -77,6 +77,7 @@ def run(verbose: bool = True) -> dict:
         baseline, optimized, levers, sustainability=sust, inference=inference,
         analysis={"lie_summary": lie_summary}, period="30 ngày",
         reasoning=r2["reasoning_budget"],
+        carbon_schedule=carbon_scheduling.run(verbose=False),
     )
     out_md = os.path.join(ROOT, "outputs", "report.md")
     os.makedirs(os.path.dirname(out_md), exist_ok=True)
