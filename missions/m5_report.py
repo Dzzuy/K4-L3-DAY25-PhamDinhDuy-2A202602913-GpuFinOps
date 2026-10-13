@@ -76,6 +76,7 @@ def run(verbose: bool = True) -> dict:
     md = report.build_report(
         baseline, optimized, levers, sustainability=sust, inference=inference,
         analysis={"lie_summary": lie_summary}, period="30 ngày",
+        reasoning=r2["reasoning_budget"],
     )
     out_md = os.path.join(ROOT, "outputs", "report.md")
     os.makedirs(os.path.dirname(out_md), exist_ok=True)

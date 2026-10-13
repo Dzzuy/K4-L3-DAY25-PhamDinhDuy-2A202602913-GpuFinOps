@@ -36,6 +36,22 @@ Phần tiết kiệm được tính lần lượt theo cascade → cache → bat
 - Ưu tiên 3: tắt GPU idle (khoảng $600/tháng), sau đó thử right-size trên workload có MFU thấp và đo lại throughput.
 - Các khoản trên là ước tính từ mô phỏng. M3 dùng 30 ngày cho mọi job; right-size giả định giữ nguyên throughput và không cộng thêm chi phí chuyển đổi.
 
+## Ngân sách reasoning (mở rộng)
+
+| Nhóm | Request/ngày | Token/ngày | USD/ngày | Wh/ngày |
+|---|---:|---:|---:|---:|
+| Thường | 2,199 | 6,291,871 | $7.09 | 1887.6 |
+| Reasoning | 201 | 1,241,156 | $1.40 | 29787.7 |
+
+Trong 2,400 request, có 201 request bật reasoning. Nhóm này chiếm 8.4% lượt dùng, 16.5% tiền và 94.0% điện năng. Bảng giá của bài lab không tính thêm phí reasoning; tiền khác nhau do số token và model được chọn. Mức điện năng gấp 80 lần là giả định của bài, chưa phải số đo trên GPU thật.
+
+Chỉ bật reasoning cho việc nhiều bước mà cách xử lý thường không đạt chất lượng. Nếu vượt giới hạn, chuyển bớt sang model nhỏ rồi kiểm tra lại câu trả lời.
+
+- Cap 10% traffic: chuyển 0 request/ngày; chi phí $8.48 → $8.48/ngày, điện năng 31675.3 → 31675.3 Wh/ngày.
+- Cap 5% traffic: chuyển 81 request/ngày; chi phí $8.48 → $7.76/ngày, điện năng 31675.3 → 15651.8 Wh/ngày.
+
+Ở mức 5%, mình chuyển các request nhiều token nhất trước. Tiền chỉ giảm khi request đang dùng model lớn được chuyển sang model nhỏ. Đây là phép tính thử; chưa biết chất lượng câu trả lời sẽ đổi ra sao.
+
 ## Sustainability
 
 - Truy vấn mẫu 800 token: 0.24 Wh, phát thải 0.091 gCO2e tại us-east-1.

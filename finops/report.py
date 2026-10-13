@@ -4,7 +4,8 @@ from __future__ import annotations
 
 def build_report(baseline_usd: float, optimized_usd: float, levers: dict,
                  sustainability: dict | None = None, period: str = "monthly",
-                 inference: dict | None = None, analysis: dict | None = None) -> str:
+                 inference: dict | None = None, analysis: dict | None = None,
+                 reasoning: dict | None = None) -> str:
     """Return a markdown cost-optimization report."""
     savings = baseline_usd - optimized_usd
     pct = (savings / baseline_usd * 100.0) if baseline_usd > 0 else 0.0
@@ -50,6 +51,44 @@ def build_report(baseline_usd: float, optimized_usd: float, levers: dict,
             f"- Ưu tiên 3: tắt GPU idle (khoảng ${levers['Kill idle GPUs']:,.0f}/tháng), sau đó thử right-size trên workload có MFU thấp và đo lại throughput.",
             "- Các khoản trên là ước tính từ mô phỏng. M3 dùng 30 ngày cho mọi job; right-size giả định giữ nguyên throughput và không cộng thêm chi phí chuyển đổi.",
         ]
+    if reasoning:
+        normal = reasoning["normal"]
+        deep = reasoning["reasoning"]
+        total_requests = normal["requests"] + deep["requests"]
+        total_cost = normal["cost_daily"] + deep["cost_daily"]
+        total_wh = normal["wh_daily"] + deep["wh_daily"]
+        lines += [
+            "",
+            "## Ngân sách reasoning (mở rộng)",
+            "",
+            "| Nhóm | Request/ngày | Token/ngày | USD/ngày | Wh/ngày |",
+            "|---|---:|---:|---:|---:|",
+            f"| Thường | {normal['requests']:,} | {normal['tokens']:,} | ${normal['cost_daily']:.2f} | {normal['wh_daily']:.1f} |",
+            f"| Reasoning | {deep['requests']:,} | {deep['tokens']:,} | ${deep['cost_daily']:.2f} | {deep['wh_daily']:.1f} |",
+            "",
+            f"Trong {total_requests:,} request, có {deep['requests']} request bật reasoning. "
+            f"Nhóm này chiếm {deep['requests'] / total_requests:.1%} lượt dùng, "
+            f"{deep['cost_daily'] / total_cost:.1%} tiền và {deep['wh_daily'] / total_wh:.1%} điện năng. "
+            "Bảng giá của bài lab không tính thêm phí reasoning; tiền khác nhau do số token và model được chọn. "
+            "Mức điện năng gấp 80 lần là giả định của bài, chưa phải số đo trên GPU thật.",
+            "",
+            "Chỉ bật reasoning cho việc nhiều bước mà cách xử lý thường không đạt chất lượng. "
+            "Nếu vượt giới hạn, chuyển bớt sang model nhỏ rồi kiểm tra lại câu trả lời.",
+            "",
+        ]
+        for key in ("cap_10", "cap_5"):
+            scenario = reasoning[key]
+            lines.append(
+                f"- Cap {scenario['cap_pct']:.0f}% traffic: chuyển {scenario['rerouted']} request/ngày; "
+                f"chi phí ${total_cost:.2f} → ${total_cost - scenario['cost_saved_daily']:.2f}/ngày, "
+                f"điện năng {total_wh:.1f} → {total_wh - scenario['wh_saved_daily']:.1f} Wh/ngày."
+            )
+        lines.append("")
+        lines.append(
+            "Ở mức 5%, mình chuyển các request nhiều token nhất trước. "
+            "Tiền chỉ giảm khi request đang dùng model lớn được chuyển sang model nhỏ. "
+            "Đây là phép tính thử; chưa biết chất lượng câu trả lời sẽ đổi ra sao."
+        )
     if sustainability:
         lines += [
             "",
