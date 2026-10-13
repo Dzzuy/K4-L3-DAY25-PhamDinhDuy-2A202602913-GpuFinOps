@@ -14,7 +14,7 @@ MODEL_PRICES = {"small": (0.20, 0.40), "large": (3.00, 15.00)}
 
 def run(verbose: bool = True) -> dict:
     rows = load_csv("token_usage.csv")
-    base_cost = opt_cost = 0.0
+    base_cost = cascade_cost = cache_cost = opt_cost = 0.0
     total_tokens = 0
     for r in rows:
         inp, out = int(num(r["input_tokens"])), int(num(r["output_tokens"]))
@@ -26,11 +26,18 @@ def run(verbose: bool = True) -> dict:
         base_cost += pricing.request_cost(inp, out, lin, lout)
         # OPTIMIZED: cascade (route_tier), prompt caching, batch API
         pin, pout = MODEL_PRICES[r["route_tier"]]
+        cascade_cost += pricing.request_cost(inp, out, pin, pout)
+        cache_cost += pricing.request_cost(inp, out, pin, pout, cached_in=cached)
         opt_cost += pricing.request_cost(inp, out, pin, pout, cached_in=cached, batch=is_batch)
 
     base_pm = pricing.dollars_per_million(base_cost, total_tokens)
     opt_pm = pricing.dollars_per_million(opt_cost, total_tokens)
     savings_pct = (1 - opt_cost / base_cost) * 100 if base_cost else 0.0
+    lever_savings_daily = {
+        "cascade": base_cost - cascade_cost,
+        "cache": cascade_cost - cache_cost,
+        "batch": cache_cost - opt_cost,
+    }
 
     if verbose:
         print("== M2 Inference Cost Levers ==")
@@ -44,6 +51,7 @@ def run(verbose: bool = True) -> dict:
         "baseline_daily": round(base_cost, 2), "optimized_daily": round(opt_cost, 2),
         "baseline_per_m": round(base_pm, 3), "optimized_per_m": round(opt_pm, 3),
         "savings_pct": round(savings_pct, 1), "total_tokens": total_tokens,
+        "lever_savings_daily": lever_savings_daily,
     }
 
 

@@ -44,15 +44,39 @@ def run(verbose: bool = True) -> dict:
     total_pct = sum(levers.values()) / baseline * 100 if baseline else 0.0
 
     # --- sustainability snapshot ---
-    median_tokens = 800
-    wh = sustainability.wh_per_query(median_tokens)
+    sample_tokens = 800
+    wh = sustainability.wh_per_query(sample_tokens)
+    base_region = "us-east-1"
+    cleanest_region = min(sustainability.REGION_CARBON, key=sustainability.REGION_CARBON.get)
+    cheapest_region = min(sustainability.REGION_PRICE_KWH, key=sustainability.REGION_PRICE_KWH.get)
     sust = {
+        "sample_tokens": sample_tokens,
         "wh_per_query": wh,
-        "carbon_g": sustainability.carbon_g(wh, "us-east-1"),
-        "best_region": min(sustainability.REGION_CARBON, key=sustainability.REGION_CARBON.get),
+        "carbon_g": sustainability.carbon_g(wh, base_region),
+        "base_region": base_region,
+        "base_energy_usd": sustainability.energy_cost_usd(wh, base_region),
+        "cleanest_region": cleanest_region,
+        "clean_carbon_g": sustainability.carbon_g(wh, cleanest_region),
+        "clean_energy_usd": sustainability.energy_cost_usd(wh, cleanest_region),
+        "cheapest_region": cheapest_region,
     }
 
-    md = report.build_report(baseline, optimized, levers, sustainability=sust)
+    inference = {
+        "total_tokens": r2["total_tokens"],
+        "baseline_per_m": r2["baseline_per_m"],
+        "optimized_per_m": r2["optimized_per_m"],
+        "lever_savings_monthly": {
+            name: saving * DAYS for name, saving in r2["lever_savings_daily"].items()
+        },
+    }
+    lie_summary = "; ".join(
+        f"{item['gpu_id']} util {item['gpu_util_pct']:.1f}%, MFU {item['mfu']:.3f}, MBU {item['mbu']:.3f}"
+        for item in r1["lies"]
+    )
+    md = report.build_report(
+        baseline, optimized, levers, sustainability=sust, inference=inference,
+        analysis={"lie_summary": lie_summary}, period="30 ngày",
+    )
     out_md = os.path.join(ROOT, "outputs", "report.md")
     os.makedirs(os.path.dirname(out_md), exist_ok=True)
     with open(out_md, "w") as f:
